@@ -3,10 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.config import settings
 from backend.auth.routers import router as auth_router
-from backend.folders.routers import router as folders_router
-from backend.notes.routers import router as notes_router
 from backend.users.routers import router as users_router
-from backend.ai.routers import router as ai_router
 
 app = FastAPI(title="Smart Notes API")
 
