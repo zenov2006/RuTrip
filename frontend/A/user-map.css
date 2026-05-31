@@ -812,7 +812,7 @@ header {
     color: var(--text-muted);
 }
 
-/* ===== КАРТА С КАРТИНКОЙ-ПОДЛОЖКОЙ (НЕ РАСТЯГИВАЕТСЯ) ===== */
+/* ===== КАРТА С КАРТИНКОЙ-ПОДЛОЖКОЙ (ФИКСИРОВАННЫЕ ПРОПОРЦИИ) ===== */
 .map-card {
     background: var(--card-bg);
     backdrop-filter: blur(10px);
@@ -855,23 +855,26 @@ header {
     background: #e8e8e3;
     border-radius: 20px;
     margin: 0 20px 20px 20px;
+    display: flex;
+    justify-content: center;
 }
 
 .map-container {
     position: relative;
     width: 100%;
-    height: auto;
+    max-width: 900px;
     background: #efefef;
     border-radius: 0px;
     overflow: hidden;
 }
 
-/* Картинка-подложка */
+/* Картинка-подложка - фиксируем пропорции */
 .map-background {
-    position: relative;
     display: block;
     width: 100%;
     height: auto;
+    aspect-ratio: 710 / 458;
+    object-fit: contain;
     z-index: 1;
 }
 
