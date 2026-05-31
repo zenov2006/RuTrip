@@ -116,3 +116,11 @@ def update_profile(
     db.refresh(current_user)
 
     return current_user
+@router.get("/users/me/friend-requests")
+def get_friend_requests(
+    current_user: User = Depends(get_current_user),
+):
+    return {
+        "incoming": [],
+        "outgoing": [],
+    }

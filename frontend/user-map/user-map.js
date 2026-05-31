@@ -374,7 +374,7 @@ function updateMapColors() {
     paths.forEach(path => {
         const title = path.getAttribute('data-title');
         if (title && regionsData[title]) {
-            const isVisited = !!visitedRegions[regionsData[title].id];
+            const isVisited = !!visitedRegions[title];
             path.style.fill = isVisited ? '#4CAF50' : '#ffffff';
             path.style.stroke = isVisited ? '#2E7D32' : '#333333';
             path.style.strokeWidth = isVisited ? '1.2' : '0.8';
@@ -719,7 +719,7 @@ function submitReview() {
 }
 
 async function saveRegionData() {
-    const regionId = regionsData[currentStepData.regionName]?.id;
+   const regionId = currentStepData.regionName;
     if (!regionId) {
         showToast('Ошибка: регион не найден', 'error');
         return;
@@ -789,7 +789,7 @@ function setupMapInteractivity() {
         });
         
         path.addEventListener('mouseleave', () => {
-            const isVisited = visitedRegions[regionsData[title]?.id];
+            const isVisited = visitedRegions[title];
             path.style.fill = isVisited ? '#4CAF50' : '#ffffff';
             tooltip.classList.remove('active');
         });
@@ -799,9 +799,10 @@ function setupMapInteractivity() {
                 showToast('Сначала войдите в аккаунт', 'info');
                 return;
             }
-            const regionId = regionsData[title]?.id;
-            if (regionId && visitedRegions[regionId]) {
-                showRegionInfo(title, visitedRegions[regionId]);
+            const regionId = title;
+
+            if (visitedRegions[regionId]) {
+                 showRegionInfo(title, visitedRegions[regionId]);
             } else {
                 startRegionAdd(title);
             }
@@ -822,11 +823,20 @@ function showRegionInfo(regionName, data) {
                     ${data.reviewText ? `<p><i class="fas fa-comment"></i> "${data.reviewText}"</p>` : ''}
                 </div>
                 <div class="modal-buttons">
-                    <button class="modal-btn secondary" onclick="showDeleteConfirm('${regionName}', '${regionsData[regionName]?.id}')">
-                        <i class="fas fa-trash"></i> Удалить
-                    </button>
-                    <button class="modal-btn primary" onclick="closeModal()">Закрыть</button>
-                </div>
+					<button
+						class="modal-btn secondary"
+						onclick="showDeleteConfirm('${regionName}', '${regionName}')"
+					>
+						<i class="fas fa-trash"></i> Удалить
+					</button>
+
+					<button
+						class="modal-btn primary"
+						onclick="closeModal()"
+					>
+						Закрыть
+					</button>
+				</div>
             </div>
         </div>
     `;
