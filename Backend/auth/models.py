@@ -8,6 +8,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    UniqueConstraint,
 )
 from sqlalchemy.orm import relationship
 
@@ -58,4 +59,84 @@ class RefreshToken(Base):
     user = relationship(
         "User",
         back_populates="refresh_tokens",
+    )
+class FriendRequest(Base):
+    __tablename__ = "friend_requests"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    from_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    to_user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    status = Column(String, default="pending", nullable=False)
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    from_user = relationship(
+        "User",
+        foreign_keys=[from_user_id],
+    )
+
+    to_user = relationship(
+        "User",
+        foreign_keys=[to_user_id],
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "from_user_id",
+            "to_user_id",
+            name="uq_friend_request_from_to",
+        ),
+    )
+
+
+class Friend(Base):
+    __tablename__ = "friends"
+
+    id = Column(Integer, primary_key=True, index=True)
+
+    user_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    friend_id = Column(
+        Integer,
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship(
+        "User",
+        foreign_keys=[user_id],
+    )
+
+    friend = relationship(
+        "User",
+        foreign_keys=[friend_id],
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "user_id",
+            "friend_id",
+            name="uq_friend_user_friend",
+        ),
     )

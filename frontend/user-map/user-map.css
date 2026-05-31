@@ -863,46 +863,44 @@ header {
     width: 100%;
     max-width: 1200px;
     margin: 0 auto;
-    aspect-ratio: 710 / 459;
     overflow: hidden;
     border-radius: 20px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
 .map-background {
-    position: absolute;
-    inset: 0;
     width: 100%;
-    height: 100%;
-    object-fit: contain;
-    z-index: 1;
+    display: block;
 }
 
 .map-container svg {
     position: absolute;
     inset: 0;
+
     width: 100%;
     height: 100%;
+
     z-index: 2;
     background: transparent;
-    cursor: pointer;
 }
 
-/* ВСЕ РЕГИОНЫ - БЕЛЫЕ, ЧЁРНЫЕ ГРАНИЦЫ */
 .map-container svg path {
-    fill: #ffffff !important;
-    stroke: #1a1a1a !important;
-    stroke-width: 0.6 !important;
+    fill: #ffffff;
+    stroke: #1a1a1a;
+    stroke-width: 0.6;
     transition: all 0.2s ease;
     cursor: pointer;
 }
-
 .map-container svg path:hover {
-    fill: #41cf41 !important;
+    fill: #41cf41;
 }
 
 .map-container svg path.active {
-    fill: #41cf41 !important;
-    stroke: #000000 !important;
+    fill: #41cf41;
+    stroke: #000000;
 }
 
 /* Подписи морей */

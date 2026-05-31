@@ -1,8 +1,8 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from auth.dependencies import get_current_user
 from auth.models import User
-from auth.service import get_current_user
 from database.database import get_db
 
 from map.schemas import (
@@ -86,17 +86,6 @@ def delete_visited_region(
     }
 
 
-@router.get("/users/{user_id}/friends")
-def get_friends(
-    user_id: int,
-    current_user: User = Depends(get_current_user),
-):
-    if current_user.id != user_id:
-        raise HTTPException(status_code=403, detail="Forbidden")
-
-    return []
-
-
 @router.put("/users/{user_id}")
 def update_profile(
     user_id: int,
@@ -116,11 +105,3 @@ def update_profile(
     db.refresh(current_user)
 
     return current_user
-@router.get("/users/me/friend-requests")
-def get_friend_requests(
-    current_user: User = Depends(get_current_user),
-):
-    return {
-        "incoming": [],
-        "outgoing": [],
-    }

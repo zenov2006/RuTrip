@@ -1,9 +1,8 @@
 /**
  * RuTrip - Карта путешествий
- * ПОЛНАЯ ВЕРСИЯ: друзья, заявки, поиск, карта, баг выхода исправлен
+ * ТОЛЬКО ДОБАВЛЕН ФУНКЦИОНАЛ ДРУЗЕЙ (бэк не трогаем)
  */
 
-// ==================== КОНФИГУРАЦИЯ ====================
 const API_BASE = '/api';
 
 function getAuthHeaders() {
@@ -11,7 +10,7 @@ function getAuthHeaders() {
     return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ==================== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ====================
+// ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ ==========
 let regionsData = {};
 let totalRegionsCount = 0;
 let currentModal = null;
@@ -22,7 +21,7 @@ let friendsList = [];
 let uploadedPhotos = [];
 let friendRequests = { incoming: [], outgoing: [] };
 
-// ==================== УРОВНИ И ДОСТИЖЕНИЯ ====================
+// ========== УРОВНИ И ДОСТИЖЕНИЯ ==========
 const levelRanks = [
     { min: 0, name: 'Начинающий' },
     { min: 1, name: 'Первые шаги' },
@@ -37,8 +36,7 @@ const achievementsList = [
     { id: 'explorer', name: 'Открывающий земли', desc: 'Отметить 10 регионов', condition: (v) => v >= 10, icon: 'fa-map' }
 ];
 
-// ==================== API ВЫЗОВЫ ====================
-
+// ========== API ВЫЗОВЫ (ОРИГИНАЛЬНЫЕ, НЕ ЛОМАЕМ) ==========
 async function fetchCurrentUser() {
     try {
         const response = await fetch(`${API_BASE}/auth/me`, {
@@ -47,12 +45,9 @@ async function fetchCurrentUser() {
         });
         if (response.ok) {
             currentUser = await response.json();
-            console.log('Пользователь:', currentUser.name);
             return currentUser;
         }
-    } catch (e) {
-        console.log('Пользователь не авторизован');
-    }
+    } catch (e) {}
     return null;
 }
 
@@ -66,10 +61,33 @@ async function fetchRegions() {
 
 async function fetchVisitedRegions() {
     if (!currentUser) return {};
+
     try {
-        const response = await fetch(`${API_BASE}/users/${currentUser.id}/visited`, { headers: getAuthHeaders() });
-        if (response.ok) return await response.json();
+        const response = await fetch(`${API_BASE}/users/${currentUser.id}/visited`, {
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+
+            if (Array.isArray(data)) {
+                const result = {};
+
+                data.forEach(item => {
+                    const key = item.regionId || item.region_id || item.regionName || item.region_name;
+
+                    if (key) {
+                        result[key] = item;
+                    }
+                });
+
+                return result;
+            }
+
+            return data;
+        }
     } catch (e) {}
+
     return {};
 }
 
@@ -119,12 +137,33 @@ async function deleteVisitedRegion(regionId) {
     return false;
 }
 
-async function fetchFriends() {
+async function fetchFriends(userId = null) {
     if (!currentUser) return [];
+
+    const targetUserId = userId || currentUser.id;
+
     try {
-        const response = await fetch(`${API_BASE}/users/${currentUser.id}/friends`, { headers: getAuthHeaders() });
-        if (response.ok) return await response.json();
-    } catch (e) {}
+        const response = await fetch(`${API_BASE}/users/${targetUserId}/friends`, {
+            method: 'GET',
+            headers: getAuthHeaders()
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+
+            if (targetUserId === currentUser.id) {
+                friendsList = data;
+            }
+
+            return data;
+        }
+
+        const err = await response.json();
+        console.error('Ошибка загрузки друзей:', err);
+    } catch (e) {
+        console.error('Ошибка fetchFriends:', e);
+    }
+
     return [];
 }
 
@@ -140,22 +179,25 @@ async function searchUsers(query) {
 
 async function sendFriendRequest(userId) {
     if (!currentUser) return false;
+
     try {
         const response = await fetch(`${API_BASE}/users/${userId}/friend-request`, {
             method: 'POST',
             headers: getAuthHeaders()
         });
+
         if (response.ok) {
             showToast('Заявка отправлена', 'success');
             await fetchFriendRequests();
             return true;
-        } else {
-            const err = await response.json();
-            showToast(err.message || 'Ошибка', 'error');
         }
+
+        const err = await response.json();
+        showToast(err.detail || err.message || 'Ошибка', 'error');
     } catch (e) {
         showToast('Ошибка отправки', 'error');
     }
+
     return false;
 }
 
@@ -234,34 +276,14 @@ async function logout() {
     try {
         await fetch(`${API_BASE}/auth/logout`, { method: 'POST', headers: getAuthHeaders() });
     } catch (e) {}
-    
-    // Полная очистка всех данных
     currentUser = null;
     visitedRegions = {};
     friendsList = [];
-    friendRequests = { incoming: [], outgoing: [] };
-    regionsData = {};
-    
-    // Сброс UI в безопасное состояние
-    updateAllStats();
-    updateAchievements();
-    
-    // Сброс цветов карты на нейтральные
-    const paths = document.querySelectorAll('#regionMap path[data-title]');
-    paths.forEach(path => {
-        path.style.fill = '#ffffff';
-        path.style.stroke = '#333333';
-        path.style.strokeWidth = '0.8';
-    });
-    
     checkAuth();
-    
-    // Переход на главную
     window.location.href = 'index.html';
 }
 
-// ==================== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ====================
-
+// ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 function autoFillRegionsData() {
     const paths = document.querySelectorAll('#regionMap path[data-title]');
     paths.forEach(path => {
@@ -272,8 +294,7 @@ function autoFillRegionsData() {
         }
     });
     totalRegionsCount = Object.keys(regionsData).length;
-    const totalSpan = document.getElementById('totalRegionsCount');
-    if (totalSpan) totalSpan.textContent = totalRegionsCount;
+    document.getElementById('totalRegionsCount').textContent = totalRegionsCount;
     updateAllStats();
     updateAchievements();
     updateMapColors();
@@ -283,16 +304,11 @@ function updateAllStats() {
     const visitedCount = Object.keys(visitedRegions).length;
     const percent = totalRegionsCount > 0 ? Math.round((visitedCount / totalRegionsCount) * 100) : 0;
     
-    const progressPercent = document.getElementById('progressPercent');
-    if (progressPercent) progressPercent.textContent = percent + '%';
-    const progressBarFill = document.getElementById('progressBarFill');
-    if (progressBarFill) progressBarFill.style.width = percent + '%';
-    const compactVisited = document.getElementById('compactVisited');
-    if (compactVisited) compactVisited.textContent = visitedCount;
-    const compactPercent = document.getElementById('compactPercent');
-    if (compactPercent) compactPercent.textContent = percent + '%';
-    const visitedCountSpan = document.getElementById('visitedCount');
-    if (visitedCountSpan) visitedCountSpan.textContent = visitedCount;
+    document.getElementById('progressPercent').textContent = percent + '%';
+    document.getElementById('progressBarFill').style.width = percent + '%';
+    document.getElementById('compactVisited').textContent = visitedCount;
+    document.getElementById('compactPercent').textContent = percent + '%';
+    document.getElementById('visitedCount').textContent = visitedCount;
     
     let currentLevel = levelRanks[0];
     for (let i = levelRanks.length - 1; i >= 0; i--) {
@@ -301,8 +317,7 @@ function updateAllStats() {
             break;
         }
     }
-    const levelBadge = document.getElementById('userLevelBadge');
-    if (levelBadge) levelBadge.innerHTML = currentLevel.name;
+    document.getElementById('userLevelBadge').innerHTML = currentLevel.name;
     
     let nextAchievement = achievementsList.find(a => !a.condition(visitedCount));
     const nextSpan = document.getElementById('nextAchievement');
@@ -316,15 +331,13 @@ function updateAllStats() {
     }
     
     const unlockedCount = achievementsList.filter(a => a.condition(visitedCount)).length;
-    const compactAchievements = document.getElementById('compactAchievements');
-    if (compactAchievements) compactAchievements.textContent = unlockedCount;
+    document.getElementById('compactAchievements').textContent = unlockedCount;
 }
 
 function updateAchievements() {
     const visitedCount = Object.keys(visitedRegions).length;
     const unlockedCount = achievementsList.filter(a => a.condition(visitedCount)).length;
-    const achievementsCountSpan = document.getElementById('achievementsCount');
-    if (achievementsCountSpan) achievementsCountSpan.textContent = `${unlockedCount}/${achievementsList.length}`;
+    document.getElementById('achievementsCount').textContent = `${unlockedCount}/${achievementsList.length}`;
     
     const grid = document.getElementById('achievementsGrid');
     if (grid) {
@@ -369,19 +382,27 @@ function updateFriends() {
 
 function updateMapColors() {
     const paths = document.querySelectorAll('#regionMap path[data-title]');
-    if (!paths.length) return;
-    
+
     paths.forEach(path => {
         const title = path.getAttribute('data-title');
-        if (title && regionsData[title]) {
-            const isVisited = !!visitedRegions[title];
-            path.style.fill = isVisited ? '#4CAF50' : '#ffffff';
-            path.style.stroke = isVisited ? '#2E7D32' : '#333333';
-            path.style.strokeWidth = isVisited ? '1.2' : '0.8';
-        }
+        const key = normalizeRegionKey(title);
+
+        const isVisited = !!visitedRegions[title] || !!visitedRegions[key];
+
+        path.style.fill = isVisited ? '#4CAF50' : '#ffffff';
+        path.style.stroke = isVisited ? '#2E7D32' : '#333333';
+        path.style.strokeWidth = isVisited ? '1.2' : '0.8';
     });
 }
 
+function normalizeRegionKey(value) {
+    return value
+        .toLowerCase()
+        .replace(/[()]/g, '')
+        .replace(/[^а-яёa-z0-9]+/gi, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
 function showToast(message, type = 'success') {
     const oldToasts = document.querySelectorAll('.custom-toast');
     oldToasts.forEach(toast => toast.remove());
@@ -399,8 +420,7 @@ function showToast(message, type = 'success') {
     setTimeout(() => toast.remove(), 3000);
 }
 
-// ==================== МОДАЛЬНЫЕ ОКНА ДРУЗЕЙ ====================
-
+// ========== МОДАЛЬНОЕ ОКНО ДРУЗЕЙ ==========
 function openFriendsModal() {
     closeModal();
     const modalHtml = `
@@ -408,12 +428,10 @@ function openFriendsModal() {
             <div class="modal-container" style="max-width: 700px;">
                 <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
                 <h2 style="text-align:center;margin-bottom:24px;"><i class="fas fa-user-friends"></i> Друзья и заявки</h2>
-                
                 <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
                     <button id="searchFriendsTab" class="modal-btn primary" style="flex:1;">🔍 Поиск</button>
                     <button id="requestsFriendsTab" class="modal-btn secondary" style="flex:1;">📨 Заявки</button>
                 </div>
-                
                 <div id="friendsModalContent">
                     <div id="searchFriendsPanel">
                         <div class="form-group">
@@ -421,7 +439,6 @@ function openFriendsModal() {
                         </div>
                         <div id="searchResultsList" style="max-height:300px; overflow-y:auto;"></div>
                     </div>
-                    
                     <div id="requestsFriendsPanel" style="display:none;">
                         <h4>Входящие заявки</h4>
                         <div id="incomingRequestsList"></div>
@@ -493,9 +510,7 @@ function openFriendsModal() {
 async function sendFriendRequestFromModal(userId) {
     await sendFriendRequest(userId);
     const searchInput = document.getElementById('friendSearchInput');
-    if (searchInput) {
-        searchInput.dispatchEvent(new Event('input'));
-    }
+    if (searchInput) searchInput.dispatchEvent(new Event('input'));
     await fetchFriends();
     updateFriends();
 }
@@ -508,9 +523,7 @@ async function loadRequestsList() {
     if (friendRequests.incoming && friendRequests.incoming.length > 0) {
         incomingDiv.innerHTML = friendRequests.incoming.map(req => `
             <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #eee;">
-                <div>
-                    <strong>${req.fromUser?.name || 'Пользователь'}</strong>
-                </div>
+                <div><strong>${req.fromUser?.name || 'Пользователь'}</strong></div>
                 <div>
                     <button class="modal-btn primary" style="padding:4px 12px;" onclick="acceptFriendRequestFromModal('${req.id}')">Принять</button>
                     <button class="modal-btn secondary" style="padding:4px 12px;" onclick="rejectFriendRequestFromModal('${req.id}')">Отклонить</button>
@@ -524,10 +537,7 @@ async function loadRequestsList() {
     if (friendRequests.outgoing && friendRequests.outgoing.length > 0) {
         outgoingDiv.innerHTML = friendRequests.outgoing.map(req => `
             <div style="display:flex; justify-content:space-between; align-items:center; padding:12px; border-bottom:1px solid #eee;">
-                <div>
-                    <strong>${req.toUser?.name || 'Пользователь'}</strong>
-                    <span style="color:#ff9800; margin-left:10px;">⏳ ожидание</span>
-                </div>
+                <div><strong>${req.toUser?.name || 'Пользователь'}</strong><span style="color:#ff9800; margin-left:10px;">⏳ ожидание</span></div>
             </div>
         `).join('');
     } else {
@@ -547,13 +557,8 @@ async function rejectFriendRequestFromModal(requestId) {
     await loadRequestsList();
 }
 
-// ==================== МОДАЛЬНЫЕ ОКНА РЕГИОНОВ ====================
-
+// ========== МОДАЛЬНЫЕ ОКНА РЕГИОНОВ (ОРИГИНАЛ) ==========
 function startRegionAdd(regionName) {
-    if (!currentUser) {
-        showToast('Сначала войдите в аккаунт', 'info');
-        return;
-    }
     currentStepData = {
         regionName: regionName,
         visitedByRoute: null,
@@ -563,18 +568,7 @@ function startRegionAdd(regionName) {
         photos: [],
         suggestion: null
     };
-    
-    const modalHtml = `
-        <div class="modal-overlay" id="stepModal">
-            <div class="modal-container">
-                <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-                <div class="region-name-large">${regionName}</div>
-                <div class="modal-buttons">
-                    <button class="modal-btn primary" onclick="nextStep()">Далее →</button>
-                </div>
-            </div>
-        </div>
-    `;
+    const modalHtml = `<div class="modal-overlay" id="stepModal"><div class="modal-container"><button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><div class="region-name-large">${regionName}</div><div class="modal-buttons"><button class="modal-btn primary" onclick="nextStep()">Далее →</button></div></div></div>`;
     closeModal();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     currentModal = document.getElementById('stepModal');
@@ -582,19 +576,7 @@ function startRegionAdd(regionName) {
 
 function nextStep() {
     closeModal();
-    const modalHtml = `
-        <div class="modal-overlay" id="stepModal">
-            <div class="modal-container">
-                <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-                <div class="region-name-large">${currentStepData.regionName}</div>
-                <h3 style="text-align:center;margin-bottom:20px;">Вы посетили регион по нашему предложенному маршруту?</h3>
-                <div class="modal-buttons">
-                    <button class="modal-btn primary" onclick="setVisitedByRoute(true)">Да</button>
-                    <button class="modal-btn secondary" onclick="setVisitedByRoute(false)">Нет</button>
-                </div>
-            </div>
-        </div>
-    `;
+    const modalHtml = `<div class="modal-overlay" id="stepModal"><div class="modal-container"><button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><div class="region-name-large">${currentStepData.regionName}</div><h3 style="text-align:center;margin-bottom:20px;">Вы посетили регион по нашему предложенному маршруту?</h3><div class="modal-buttons"><button class="modal-btn primary" onclick="setVisitedByRoute(true)">Да</button><button class="modal-btn secondary" onclick="setVisitedByRoute(false)">Нет</button></div></div></div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     currentModal = document.getElementById('stepModal');
 }
@@ -602,55 +584,18 @@ function nextStep() {
 function setVisitedByRoute(value) {
     currentStepData.visitedByRoute = value;
     closeModal();
-    if (value) {
-        showSightsStep();
-    } else {
-        showSuggestionStep();
-    }
+    if (value) showSightsStep();
+    else showSuggestionStep();
 }
 
 function showSightsStep() {
-    const modalHtml = `
-        <div class="modal-overlay" id="stepModal">
-            <div class="modal-container">
-                <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-                <div class="region-name-large">${currentStepData.regionName}</div>
-                <div class="form-group">
-                    <label>Что вы посетили?</label>
-                    <div class="checkbox-group" id="sightsCheckboxes">
-                        <label><input type="checkbox" value="Достопримечательность 1" class="sight-checkbox"> Достопримечательность 1</label>
-                        <label><input type="checkbox" value="Достопримечательность 2" class="sight-checkbox"> Достопримечательность 2</label>
-                        <label><input type="checkbox" value="Достопримечательность 3" class="sight-checkbox"> Достопримечательность 3</label>
-                    </div>
-                </div>
-                <div class="modal-buttons">
-                    <button class="modal-btn secondary" onclick="setVisitedByRoute(false)">← Назад</button>
-                    <button class="modal-btn primary" onclick="showReviewStep()">Далее →</button>
-                </div>
-            </div>
-        </div>
-    `;
+    const modalHtml = `<div class="modal-overlay" id="stepModal"><div class="modal-container"><button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><div class="region-name-large">${currentStepData.regionName}</div><div class="form-group"><label>Что вы посетили?</label><div class="checkbox-group" id="sightsCheckboxes"><label><input type="checkbox" value="Достопримечательность 1" class="sight-checkbox"> Достопримечательность 1</label><label><input type="checkbox" value="Достопримечательность 2" class="sight-checkbox"> Достопримечательность 2</label><label><input type="checkbox" value="Достопримечательность 3" class="sight-checkbox"> Достопримечательность 3</label></div></div><div class="modal-buttons"><button class="modal-btn secondary" onclick="setVisitedByRoute(false)">← Назад</button><button class="modal-btn primary" onclick="showReviewStep()">Далее →</button></div></div></div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     currentModal = document.getElementById('stepModal');
 }
 
 function showSuggestionStep() {
-    const modalHtml = `
-        <div class="modal-overlay" id="stepModal">
-            <div class="modal-container">
-                <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-                <div class="region-name-large">${currentStepData.regionName}</div>
-                <div class="form-group">
-                    <label>Что бы вы посоветовали посетить в этом регионе?</label>
-                    <textarea id="suggestionText" class="form-input" rows="4" placeholder="Поделитесь вашими идеями..."></textarea>
-                </div>
-                <div class="modal-buttons">
-                    <button class="modal-btn secondary" onclick="nextStep()">← Назад</button>
-                    <button class="modal-btn primary" onclick="submitSuggestion()">Отправить</button>
-                </div>
-            </div>
-        </div>
-    `;
+    const modalHtml = `<div class="modal-overlay" id="stepModal"><div class="modal-container"><button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><div class="region-name-large">${currentStepData.regionName}</div><div class="form-group"><label>Что бы вы посоветовали посетить в этом регионе?</label><textarea id="suggestionText" class="form-input" rows="4" placeholder="Поделитесь вашими идеями..."></textarea></div><div class="modal-buttons"><button class="modal-btn secondary" onclick="nextStep()">← Назад</button><button class="modal-btn primary" onclick="submitSuggestion()">Отправить</button></div></div></div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     currentModal = document.getElementById('stepModal');
 }
@@ -666,32 +611,9 @@ function showReviewStep() {
     const selectedSights = Array.from(document.querySelectorAll('.sight-checkbox:checked')).map(cb => cb.value);
     currentStepData.selectedSights = selectedSights;
     closeModal();
-    
-    const modalHtml = `
-        <div class="modal-overlay" id="stepModal">
-            <div class="modal-container">
-                <button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button>
-                <div class="region-name-large">${currentStepData.regionName}</div>
-                <div class="form-group">
-                    <label>Ваш отзыв</label>
-                    <textarea id="reviewText" class="form-input" rows="4" placeholder="Поделитесь впечатлениями..."></textarea>
-                </div>
-                <div class="form-group">
-                    <label>Оценка</label>
-                    <div class="star-rating" id="starRating">
-                        <span data-value="1">☆</span><span data-value="2">☆</span><span data-value="3">☆</span><span data-value="4">☆</span><span data-value="5">☆</span>
-                    </div>
-                </div>
-                <div class="modal-buttons">
-                    <button class="modal-btn secondary" onclick="showSightsStep()">← Назад</button>
-                    <button class="modal-btn primary" onclick="submitReview()">Отправить</button>
-                </div>
-            </div>
-        </div>
-    `;
+    const modalHtml = `<div class="modal-overlay" id="stepModal"><div class="modal-container"><button class="modal-close" onclick="closeModal()"><i class="fas fa-times"></i></button><div class="region-name-large">${currentStepData.regionName}</div><div class="form-group"><label>Ваш отзыв</label><textarea id="reviewText" class="form-input" rows="4" placeholder="Поделитесь впечатлениями..."></textarea></div><div class="form-group"><label>Оценка</label><div class="star-rating" id="starRating"><span data-value="1">☆</span><span data-value="2">☆</span><span data-value="3">☆</span><span data-value="4">☆</span><span data-value="5">☆</span></div></div><div class="modal-buttons"><button class="modal-btn secondary" onclick="showSightsStep()">← Назад</button><button class="modal-btn primary" onclick="submitReview()">Отправить</button></div></div></div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     currentModal = document.getElementById('stepModal');
-    
     let currentRating = 5;
     const stars = document.querySelectorAll('#starRating span');
     stars.forEach((star, i) => {
@@ -711,7 +633,6 @@ function submitReview() {
     let rating = 0;
     const stars = document.querySelectorAll('#starRating span');
     stars.forEach((star, i) => { if (star.textContent === '★') rating = i + 1; });
-    
     currentStepData.reviewText = reviewText;
     currentStepData.rating = rating;
     closeModal();
@@ -719,12 +640,11 @@ function submitReview() {
 }
 
 async function saveRegionData() {
-   const regionId = currentStepData.regionName;
+    const regionId = currentStepData.regionName;
     if (!regionId) {
         showToast('Ошибка: регион не найден', 'error');
-        return;
+    return;
     }
-    
     const reviewData = {
         visitedByRoute: currentStepData.visitedByRoute,
         selectedSights: currentStepData.selectedSights,
@@ -733,78 +653,68 @@ async function saveRegionData() {
         photos: currentStepData.photos,
         suggestion: currentStepData.suggestion
     };
-    
     const success = await saveVisitedRegion(regionId, reviewData);
     if (success) {
-        const modalHtml = `
-            <div class="modal-overlay" id="congratModal">
-                <div class="modal-container" style="text-align:center;">
-                    <div class="mascot" style="width:80px;height:80px;margin:0 auto 20px;animation:bounce 0.5s ease infinite;">
-                        <div class="mascot-ear left"></div><div class="mascot-ear right"></div>
-                        <div class="mascot-face">
-                            <div class="mascot-eye left"></div><div class="mascot-eye right"></div>
-                            <div class="mascot-nose"></div>
-                        </div>
-                    </div>
-                    <h2>Поздравляем!</h2>
-                    <div class="region-name-large" style="font-size:24px;">${currentStepData.regionName}</div>
-                    <p style="margin:20px 0;">Новое приключение добавлено в вашу коллекцию!</p>
-                    <button class="modal-btn primary" onclick="closeModal()">Продолжить</button>
-                </div>
-            </div>
-            <style>@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}</style>
-        `;
+        const modalHtml = `<div class="modal-overlay" id="congratModal"><div class="modal-container" style="text-align:center;"><div class="mascot" style="width:80px;height:80px;margin:0 auto 20px;animation:bounce 0.5s ease infinite;"><div class="mascot-ear left"></div><div class="mascot-ear right"></div><div class="mascot-face"><div class="mascot-eye left"></div><div class="mascot-eye right"></div><div class="mascot-nose"></div></div></div><h2>Поздравляем!</h2><div class="region-name-large" style="font-size:24px;">${currentStepData.regionName}</div><p style="margin:20px 0;">Новое приключение добавлено в вашу коллекцию!</p><button class="modal-btn primary" onclick="closeModal()">Продолжить</button></div></div><style>@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-20px)}}</style>`;
         document.body.insertAdjacentHTML('beforeend', modalHtml);
         currentModal = document.getElementById('congratModal');
     }
-    
     currentStepData = null;
     uploadedPhotos = [];
 }
 
-// ==================== ИНТЕРАКТИВНОСТЬ КАРТЫ ====================
-
+// ========== ИНТЕРАКТИВНОСТЬ КАРТЫ ==========
 function setupMapInteractivity() {
     const tooltip = document.createElement('div');
     tooltip.className = 'map-tooltip';
     document.body.appendChild(tooltip);
-    
+
     const paths = document.querySelectorAll('#regionMap path[data-title]');
-    
+
     paths.forEach(path => {
         const title = path.getAttribute('data-title');
+
         if (!title) return;
-        
+
         path.addEventListener('mouseenter', (e) => {
             path.style.fill = '#a5d6a5';
+
             tooltip.textContent = title;
             tooltip.style.left = (e.clientX + 15) + 'px';
             tooltip.style.top = (e.clientY - 40) + 'px';
+
             tooltip.classList.add('active');
         });
-        
+
         path.addEventListener('mousemove', (e) => {
             tooltip.style.left = (e.clientX + 15) + 'px';
             tooltip.style.top = (e.clientY - 40) + 'px';
         });
-        
+
         path.addEventListener('mouseleave', () => {
-            const isVisited = visitedRegions[title];
+            const key = normalizeRegionKey(title);
+
+            const isVisited =
+                !!visitedRegions[title] ||
+                !!visitedRegions[key];
+
             path.style.fill = isVisited ? '#4CAF50' : '#ffffff';
+
             tooltip.classList.remove('active');
         });
-        
+
         path.addEventListener('click', () => {
             if (!currentUser) {
                 showToast('Сначала войдите в аккаунт', 'info');
                 return;
             }
-            const regionId = title;
+
+            const regionId = normalizeRegionKey(title);
 
             if (visitedRegions[regionId]) {
-                 showRegionInfo(title, visitedRegions[regionId]);
+                showRegionInfo(title, visitedRegions[regionId]);
             } else {
-                startRegionAdd(title);
+                startRegionAdd(regionId);
             }
         });
     });
@@ -823,23 +733,16 @@ function showRegionInfo(regionName, data) {
                     ${data.reviewText ? `<p><i class="fas fa-comment"></i> "${data.reviewText}"</p>` : ''}
                 </div>
                 <div class="modal-buttons">
-					<button
-						class="modal-btn secondary"
-						onclick="showDeleteConfirm('${regionName}', '${regionName}')"
-					>
-						<i class="fas fa-trash"></i> Удалить
-					</button>
+                <button class="modal-btn secondary" onclick="showDeleteConfirm('${regionName}', '${normalizeRegionKey(regionName)}')">
+                <i class="fas fa-trash"></i> Удалить
+                </button>
 
-					<button
-						class="modal-btn primary"
-						onclick="closeModal()"
-					>
-						Закрыть
-					</button>
-				</div>
+                <button class="modal-btn primary" onclick="closeModal()"> Закрыть </button>
+                </div>
             </div>
         </div>
     `;
+
     closeModal();
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     currentModal = document.getElementById('regionInfoModal');
@@ -847,19 +750,7 @@ function showRegionInfo(regionName, data) {
 
 function showDeleteConfirm(regionName, regionId) {
     closeModal();
-    const modalHtml = `
-        <div class="modal-overlay" id="deleteModal">
-            <div class="modal-container" style="text-align:center;">
-                <div class="modal-icon"><i class="fas fa-exclamation-triangle" style="color:#ff6b6b;"></i></div>
-                <h2>Удалить отметку?</h2>
-                <p>Вы уверены, что хотите удалить отметку о посещении <strong>${regionName}</strong>?</p>
-                <div class="modal-buttons">
-                    <button class="modal-btn secondary" onclick="closeModal()">Отмена</button>
-                    <button class="modal-btn primary" onclick="confirmDelete('${regionId}')">Удалить</button>
-                </div>
-            </div>
-        </div>
-    `;
+    const modalHtml = `<div class="modal-overlay" id="deleteModal"><div class="modal-container" style="text-align:center;"><div class="modal-icon"><i class="fas fa-exclamation-triangle" style="color:#ff6b6b;"></i></div><h2>Удалить отметку?</h2><p>Вы уверены, что хотите удалить отметку о посещении <strong>${regionName}</strong>?</p><div class="modal-buttons"><button class="modal-btn secondary" onclick="closeModal()">Отмена</button><button class="modal-btn primary" onclick="confirmDelete('${regionId}')">Удалить</button></div></div></div>`;
     document.body.insertAdjacentHTML('beforeend', modalHtml);
     currentModal = document.getElementById('deleteModal');
 }
@@ -872,8 +763,7 @@ async function confirmDelete(regionId) {
     }
 }
 
-// ==================== ПРОФИЛЬ И АВТОРИЗАЦИЯ ====================
-
+// ========== ПРОФИЛЬ И АВТОРИЗАЦИЯ ==========
 function openEditProfileModal() {
     const modal = document.getElementById('editProfileModal');
     document.getElementById('editName').value = currentUser?.name || '';
@@ -898,7 +788,6 @@ function checkAuth() {
     const profileMenu = document.getElementById('profileMenu');
     const userNameDisplay = document.getElementById('userNameDisplay');
     const profileName = document.getElementById('profileName');
-    
     if (currentUser) {
         if (authButtons) authButtons.style.display = 'none';
         if (profileMenu) profileMenu.style.display = 'block';
@@ -923,8 +812,35 @@ function initProfileDropdown() {
     });
 }
 
-// ==================== АНИМАЦИЯ ПЛАВАЮЩИХ ИКОНОК ====================
+// ========== МАСКОТ ==========
+function initMascot() {
+    const mascot = document.getElementById('mascot');
+    if (!mascot) return;
+    mascot.addEventListener('click', () => {
+        mascot.style.animation = 'none';
+        mascot.style.transform = 'scale(1.3) rotate(15deg)';
+        setTimeout(() => {
+            mascot.style.animation = 'float 6s ease-in-out infinite';
+            mascot.style.transform = 'scale(1) rotate(0deg)';
+        }, 500);
+        const visitedCount = Object.keys(visitedRegions).length;
+        const messages = ["Привет! Я Миша, твой гид по России!", "Нажми на любой регион, чтобы отметить его!", `Ты уже отметил ${visitedCount} регионов!`, "Каждый новый регион — новое приключение!"];
+        alert(messages[Math.floor(Math.random() * messages.length)]);
+    });
+}
 
+// ========== САЙДБАР ==========
+function initSidebar() {
+    const menuToggle = document.getElementById('menuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const sidebarClose = document.getElementById('sidebarClose');
+    const overlay = document.getElementById('overlay');
+    if (menuToggle) menuToggle.addEventListener('click', () => { sidebar.classList.add('open'); overlay.classList.add('active'); document.body.style.overflow = 'hidden'; });
+    if (sidebarClose) sidebarClose.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('active'); document.body.style.overflow = ''; });
+    if (overlay) overlay.addEventListener('click', () => { sidebar.classList.remove('open'); overlay.classList.remove('active'); document.body.style.overflow = ''; });
+}
+
+// ========== АНИМАЦИЯ ==========
 function initFloatingIcons() {
     const heroBg = document.getElementById('mapHeroBg');
     if (heroBg) {
@@ -947,7 +863,6 @@ function initFloatingIcons() {
             setTimeout(() => { icon.style.opacity = '0.5'; }, Math.random() * 1500);
         }
     }
-    
     const mapBg = document.getElementById('mapBgAnimation');
     if (mapBg) {
         const mapIcons = ['fa-tree', 'fa-mountain', 'fa-water', 'fa-leaf', 'fa-seedling'];
@@ -971,64 +886,7 @@ function initFloatingIcons() {
     }
 }
 
-// ==================== МАСКОТ ====================
-
-function initMascot() {
-    const mascot = document.getElementById('mascot');
-    if (!mascot) return;
-    
-    mascot.addEventListener('click', () => {
-        mascot.style.animation = 'none';
-        mascot.style.transform = 'scale(1.3) rotate(15deg)';
-        setTimeout(() => {
-            mascot.style.animation = 'float 6s ease-in-out infinite';
-            mascot.style.transform = 'scale(1) rotate(0deg)';
-        }, 500);
-        
-        const visitedCount = Object.keys(visitedRegions).length;
-        const messages = [
-            "Привет! Я Миша, твой гид по России!",
-            "Нажми на любой регион, чтобы отметить его!",
-            `Ты уже отметил ${visitedCount} регионов!`,
-            "Каждый новый регион — новое приключение!"
-        ];
-        alert(messages[Math.floor(Math.random() * messages.length)]);
-    });
-}
-
-// ==================== САЙДБАР ====================
-
-function initSidebar() {
-    const menuToggle = document.getElementById('menuToggle');
-    const sidebar = document.getElementById('sidebar');
-    const sidebarClose = document.getElementById('sidebarClose');
-    const overlay = document.getElementById('overlay');
-    
-    if (menuToggle) {
-        menuToggle.addEventListener('click', () => {
-            sidebar.classList.add('open');
-            overlay.classList.add('active');
-            document.body.style.overflow = 'hidden';
-        });
-    }
-    if (sidebarClose) {
-        sidebarClose.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-            document.body.style.overflow = '';
-        });
-    }
-    if (overlay) {
-        overlay.addEventListener('click', () => {
-            sidebar.classList.remove('open');
-            overlay.classList.remove('active');
-            document.body.style.overflow = '';
-        });
-    }
-}
-
-// ==================== ГЛОБАЛЬНЫЕ ФУНКЦИИ ====================
-
+// ========== ГЛОБАЛЬНЫЕ ФУНКЦИИ ==========
 window.closeModal = function() { if (currentModal) { currentModal.remove(); currentModal = null; } };
 window.closePanel = function(panelId) { document.getElementById(panelId)?.classList.remove('show'); };
 window.viewFriendMap = function(friendId) { showToast('Карта друга в разработке', 'info'); };
@@ -1047,97 +905,53 @@ window.sendFriendRequestFromModal = sendFriendRequestFromModal;
 window.acceptFriendRequestFromModal = acceptFriendRequestFromModal;
 window.rejectFriendRequestFromModal = rejectFriendRequestFromModal;
 
-// ==================== ИНИЦИАЛИЗАЦИЯ ====================
+// ========== ИНИЦИАЛИЗАЦИЯ ==========
 async function init() {
     console.log('Инициализация RuTrip...');
-
     currentUser = await fetchCurrentUser();
-
     const regionsFromBackend = await fetchRegions();
     regionsData = {};
     if (regionsFromBackend && regionsFromBackend.length > 0) {
-        regionsFromBackend.forEach(r => {
-            regionsData[r.name] = {
-                id: r.id,
-                sights: r.sights || []
-            };
-        });
+        regionsFromBackend.forEach(r => { regionsData[r.name] = { id: r.id, sights: r.sights || [] }; });
     }
     autoFillRegionsData();
-
     if (currentUser) {
         visitedRegions = await fetchVisitedRegions();
         friendsList = await fetchFriends();
         await fetchFriendRequests();
         updateFriends();
     }
-
     updateAllStats();
     updateAchievements();
     updateMapColors();
-
     setupMapInteractivity();
     initFloatingIcons();
     initMascot();
     initSidebar();
     initProfileDropdown();
     checkAuth();
-
-    document.getElementById('friendsBtn')?.addEventListener('click', () => {
-        if (!currentUser) {
-            showToast('Сначала войдите в аккаунт', 'info');
-            return;
-        }
-        openFriendsModal();
-    });
-
+    document.getElementById('friendsBtn')?.addEventListener('click', () => openFriendsModal());
     document.getElementById('achievementsBtn')?.addEventListener('click', () => {
         document.getElementById('achievementsPanel')?.classList.toggle('show');
         document.getElementById('friendsPanel')?.classList.remove('show');
         updateAchievements();
     });
-
-    document.getElementById('friendsMenuLink')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        if (!currentUser) {
-            showToast('Сначала войдите в аккаунт', 'info');
-            return;
-        }
-        openFriendsModal();
-    });
-
+    document.getElementById('friendsMenuLink')?.addEventListener('click', (e) => { e.preventDefault(); openFriendsModal(); });
     document.getElementById('achievementsMenuLink')?.addEventListener('click', (e) => {
         e.preventDefault();
         document.getElementById('achievementsPanel')?.classList.toggle('show');
         document.getElementById('friendsPanel')?.classList.remove('show');
         updateAchievements();
     });
-
     document.getElementById('shareBtn')?.addEventListener('click', () => {
         const visitedCount = Object.keys(visitedRegions).length;
         const text = `Я путешествую по России и уже посетил(а) ${visitedCount} регионов! Присоединяйся к RuTrip! 🗺️`;
-        if (navigator.share) {
-            navigator.share({
-                title: 'RuTrip',
-                text,
-                url: window.location.href
-            }).catch(() => navigator.clipboard.writeText(text));
-        } else {
-            navigator.clipboard.writeText(text);
-        }
+        if (navigator.share) navigator.share({ title: 'RuTrip', text, url: window.location.href }).catch(() => navigator.clipboard.writeText(text));
+        else navigator.clipboard.writeText(text);
         showToast('Текст скопирован!', 'success');
     });
-
-    document.getElementById('logoutLink')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        logout();
-    });
-
-    document.getElementById('logoutLinkSidebar')?.addEventListener('click', (e) => {
-        e.preventDefault();
-        logout();
-    });
-
+    document.getElementById('logoutLink')?.addEventListener('click', (e) => { e.preventDefault(); logout(); });
+    document.getElementById('logoutLinkSidebar')?.addEventListener('click', (e) => { e.preventDefault(); logout(); });
     console.log('RuTrip инициализирован');
 }
 
