@@ -859,6 +859,10 @@ function renderCards(subjectNames) {
 // Бэкенд получает запрос, отправляет в ML, ML возвращает массив названий субъектов (от 1 до 6)
 // Бэкенд возвращает этот массив фронту, фронт вызывает updateResultsFromML()
 async function sendQueryToBackend(query, tags) {
+    if (!query || query.trim() === '') {
+        query = " ";
+    }
+
     try {
         // Стучимся на шлюз Дани (порт 8000). Если у вас бэк на 8002 — поменяй порт на 8002.
         const response = await fetch('/api/ai/search', {
@@ -897,14 +901,16 @@ function performSearch(e) {
         e.preventDefault();
     }
 
-    const query = document.getElementById('aiQuery').value.trim();
+    const rawInput = document.getElementById('aiQuery').value.trim();
     const activeTags = Array.from(document.querySelectorAll('.tag.active'))
         .map(tag => tag.dataset.tag);
     
-    if (!query && activeTags.length === 0) {
+    if (rawInput === "" && activeTags.length === 0) {
         renderCards(defaultSubjects);
         return;
     }
+
+    const query = rawInput === "" ? activeTags[0] : rawInput;
     
     sendQueryToBackend(query, activeTags);
 }

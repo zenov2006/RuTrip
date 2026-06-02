@@ -3,7 +3,7 @@ from typing import List, Optional
 
 
 class GottenInfo(BaseModel):
-    query: str
+    query: Optional[str] = ""
     tags: Optional[List[str]] = None
     top_k: Optional[int] = None
 

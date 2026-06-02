@@ -6,12 +6,14 @@ router = APIRouter()
 
 @router.post("/search", response_model=SearchResponse)
 async def search(info: GottenInfo):
-    clean_words = normalize_text(info.query)
+    search_query = info.query if info.query is not None else ""
+
+    clean_words = normalize_text(search_query)
     new_tags = detect_tags(clean_words)
     
     final_tags = list(set((info.tags or []) + new_tags))
 
-    ai_data = await get_ai_recommendation(info.query, final_tags)
+    ai_data = await get_ai_recommendation(search_query, final_tags)
     
     return {
         "status": "success",
