@@ -1193,7 +1193,7 @@ window.openEditProfileModal = openEditProfileModal;
 window.closeEditProfileModal = closeEditProfileModal;
 window.saveProfile = saveProfile;
 window.openFriendsModal = openFriendsModal;
-window.sendFriendRequestFromModal = sendFriendRequestFromModal;
+//window.sendFriendRequestFromModal = sendFriendRequestFromModal;
 window.acceptFriendRequestFromModal = acceptFriendRequestFromModal;
 window.rejectFriendRequestFromModal = rejectFriendRequestFromModal;
 

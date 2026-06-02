@@ -894,20 +894,20 @@ header {
 
 /* ВСЕ РЕГИОНЫ - БЕЛЫЕ, ЧЁРНЫЕ ГРАНИЦЫ */
 .map-container svg path {
-    fill: #ffffff !important;
-    stroke: #1a1a1a !important;
-    stroke-width: 0.6 !important;
+    fill: #ffffff;
+    stroke: #1a1a1a;
+    stroke-width: 0.6;
     transition: all 0.2s ease;
     cursor: pointer;
 }
 
 .map-container svg path:hover {
-    fill: #41cf41 !important;
+    fill: #41cf41;
 }
 
 .map-container svg path.active {
-    fill: #41cf41 !important;
-    stroke: #000000 !important;
+    fill: #41cf41;
+    stroke: #000000;
 }
 
 /* Подписи морей */
